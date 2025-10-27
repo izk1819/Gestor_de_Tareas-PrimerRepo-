@@ -23,9 +23,46 @@ def query(task_list):
     cursor.close()
     connection.close()
 
+# Se define una funcion exclusiva para insertar datos a sql de forma segura:
+def secure_query(sql, values):
+    connection = mysql.connector.connect(
+        host = "localhost",
+        user = os.getenv("DB_USER"),
+        password = os.getenv("DB_PASS"),
+        database = "task_manager",
+    )
+    cursor = connection.cursor()
+
+    cursor.execute(sql, values)
+    
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+def sql_search(sql, values):
+    connection = mysql.connector.connect(
+        host="localhost",
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASS"),
+        database="task_manager"
+    )
+    cursor = connection.cursor()
+
+    cursor.execute(sql, values)
+
+    # Result será None si no hay coincidencias
+    result = cursor.fetchone()
+
+    cursor.close()
+    connection.close()
+
+    return result
 
 
-# Cargar datos para MySQL:
+
+
+
+# Cargar datos iniciales a MySQL:
 load_dotenv()
 
 # Si no exixte, crear la base de datos junto con la tabla de usuarios:
@@ -49,21 +86,53 @@ def task_manager():
 
 @app.route("/login", methods = ["GET","POST"])
 def login():
-    return render_template("users/login.html")
+    message = None
+
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+
+        sql = "select * from users where email = %s and password = %s"
+        values = (email, password)
+        
+        if sql_search(sql, values) != None:
+            # Acá se debe ir a la página principal ############################
+            pass
+
+
+
+    return render_template("sign_templates/login.html")
 
 @app.route("/sign_up", methods = ["GET","POST"])
 def sign_up():
 
+    # Se define un mensaje sin valor porque después se usará esta variable:
+    message = None
+
     if request.method == "POST":
-        ####################################
         name = request.form["name"]
         email = request.form["email"]
         password = request.form["password"]
-        #ENVIAR A LA BASE DE DATOS
-        #####################################
 
-    return render_template("users/sign_up.html")
+        # Se define una variable que sirva para verificar si los datos se pudieron registrar correctamente:
+        sign_up_verification = False
+        try:
+            sql = "insert into users (name, email, password) values(%s, %s, %s)"
+            values = (name, email, password)
+            secure_query(sql, values)
 
-# Iniciar Flask
+            sign_up_verification = True
+
+        except:
+            sign_up_verification = False
+        
+        finally:
+            if sign_up_verification == True:
+                message = "Te has registrado correctamente."
+            else:
+                message = "No te has podido registrar correctamente, inténtalo de nuevo."
+
+    return render_template("sign_templates/sign_up.html", message=message)
+
 if __name__ == '__main__':
     app.run(debug=True)
