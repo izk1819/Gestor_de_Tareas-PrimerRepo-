@@ -1,7 +1,7 @@
 # Se importan los módulos necesarios:
 import mysql.connector
 import os
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, url_for, redirect
 from dotenv import load_dotenv
 
 
@@ -96,12 +96,11 @@ def login():
         values = (email, password)
         
         if sql_search(sql, values) != None:
-            # Acá se debe ir a la página principal ############################
-            pass
+            return redirect (url_for("home"))
+        else:
+            message = "Correo y/o contraseña incorrecta(s)."
 
-
-
-    return render_template("sign_templates/login.html")
+    return render_template("sign_templates/login.html", message=message)
 
 @app.route("/sign_up", methods = ["GET","POST"])
 def sign_up():
@@ -133,6 +132,10 @@ def sign_up():
                 message = "No te has podido registrar correctamente, inténtalo de nuevo."
 
     return render_template("sign_templates/sign_up.html", message=message)
+
+@app.route("/home")
+def home():
+    return render_template("home.html")
 
 if __name__ == '__main__':
     app.run(debug=True)

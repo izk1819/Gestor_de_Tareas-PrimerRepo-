@@ -1,17 +1,24 @@
-<form method="POST">
-    <label for="name">Nombre: </label>
-    <input id="name" name="name" required placeholder="Juan González">
-    <br>
-    <label for="email">Correo: </label>
-    <input id="email" type="email" name="email" required placeholder="juan.gonzalez@ejemplo.com">
-    <br>
-    <label for="password">Contraseña: </label>
-    <input id="password" type="password" name="password" required>
-    <br>
-    <button type="submit">Registrar Usuario</button>
-    {% if message %}
-        <div class="alert">{{ message }}</div>
-    {% endif %}
-
-
-</form>
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" lang="es">
+        <title>Registro - Task Manager</title>
+    </head>
+    <body>
+        <form method="POST">
+            <label for="name">Nombre: </label>
+            <input id="name" name="name" required placeholder="Juan González">
+            <br>
+            <label for="email">Correo: </label>
+            <input id="email" type="email" name="email" required placeholder="juan.gonzalez@ejemplo.com">
+            <br>
+            <label for="password">Contraseña: </label>
+            <input id="password" type="password" name="password" required>
+            <br>
+            <button type="submit">Registrar Usuario</button>
+            {% if message %}
+                <div class="alert">{{ message }}</div>
+            {% endif %}
+        </form>
+    </body>
+</html>
