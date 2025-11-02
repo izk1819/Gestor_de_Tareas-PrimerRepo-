@@ -4,4 +4,14 @@
         <meta charset="UTF-8" lang="es">
         <title>Inicio - Task Manager</title>
     </head>
+
+    <body>
+        <h1>Task Manager</h1>
+        <a href="{{ url_for('new_task') }}">
+            <button>Nueva tarea</button>
+        </a>
+        <a href="{{ url_for('task_list') }}">
+            <button>Ver lista de tareas</button>
+        </a>
+    </body>
 </html>

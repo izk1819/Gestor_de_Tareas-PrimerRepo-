@@ -1,66 +1,23 @@
 # Se importan los módulos necesarios:
-import mysql.connector
+from utils.mysql import query, sql_search, secure_query
+from utils.communications import send_email
+
 import os
-from flask import Flask, render_template, request, url_for, redirect
 from dotenv import load_dotenv
+from datetime import timedelta
+
+from flask import Flask, render_template, request, url_for, redirect
+from flask_login import LoginManager, login_required, UserMixin, login_user, logout_user
 
 
 
-# Se define una función para enviar consultas a mysql, la variable task debe ser una lista con strings 
-# que sirvan de consultas:
-def query(task_list):
-    connection = mysql.connector.connect(
-        host = "localhost",
-        user = os.getenv("DB_USER"),
-        password = os.getenv("DB_PASS"),
-    )
-    cursor = connection.cursor()
-
-    for task in task_list:
-        cursor.execute(task)
-    
-    connection.commit()
-    cursor.close()
-    connection.close()
-
-# Se define una funcion exclusiva para insertar datos a sql de forma segura:
-def secure_query(sql, values):
-    connection = mysql.connector.connect(
-        host = "localhost",
-        user = os.getenv("DB_USER"),
-        password = os.getenv("DB_PASS"),
-        database = "task_manager",
-    )
-    cursor = connection.cursor()
-
-    cursor.execute(sql, values)
-    
-    connection.commit()
-    cursor.close()
-    connection.close()
-
-def sql_search(sql, values):
-    connection = mysql.connector.connect(
-        host="localhost",
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASS"),
-        database="task_manager"
-    )
-    cursor = connection.cursor()
-
-    cursor.execute(sql, values)
-
-    # Result será None si no hay coincidencias
-    result = cursor.fetchone()
-
-    cursor.close()
-    connection.close()
-
-    return result
-
-
-
-
+# Se define la clase usuario:
+class User(UserMixin):
+    def __init__(self, id, name, email, password):
+        self.id = id
+        self.name = name
+        self.email = email
+        self.password = password
 
 # Cargar datos iniciales a MySQL:
 load_dotenv()
@@ -76,16 +33,32 @@ query(["create database if not exists task_manager",
        created_at timestamp default current_timestamp
        )"""])
 
-
-
+# Se inicia Flask
 app = Flask(__name__)
-# Definir páginas:
+
+# Se inicia "login manager":
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
+app.secret_key = os.getenv("SECRET_KEY")
+app.permanent_session_lifetime = timedelta(minutes = 30)
+
+@login_manager.user_loader
+def load(user_id):
+    
+    sql = "select * from users where id = %s"
+    values = (user_id,)
+    data_row = sql_search(sql, values)
+    return User(id = user_id, name = data_row[1], email = data_row[2], password = data_row[3])
+
+# Se comienza a definir páginas:
 @app.route("/")
 def task_manager():
     return render_template("task_manager.html")
 
 @app.route("/login", methods = ["GET","POST"])
 def login():
+    # Se define un mensaje sin valor porque después se usará esta variable:
     message = None
 
     if request.method == "POST":
@@ -94,8 +67,13 @@ def login():
 
         sql = "select * from users where email = %s and password = %s"
         values = (email, password)
-        
-        if sql_search(sql, values) != None:
+        user_data = sql_search(sql, values)
+
+        # Si se encuentra una coincidencia, se inicia sesión:
+        if user_data != None:
+            user = User(id=user_data[0], name=user_data[1], email=user_data[2], password=user_data[3])
+            login_user(user)
+
             return redirect (url_for("home"))
         else:
             message = "Correo y/o contraseña incorrecta(s)."
@@ -116,26 +94,49 @@ def sign_up():
         # Se define una variable que sirva para verificar si los datos se pudieron registrar correctamente:
         sign_up_verification = False
         try:
-            sql = "insert into users (name, email, password) values(%s, %s, %s)"
-            values = (name, email, password)
-            secure_query(sql, values)
+            real_email = send_email(email,
+                       "Registro completado!",
+                       f"""Bienvenid@ a Task Manager {name}, te invitamos a usar nuestra página para ayudarte en tu día a día.""")
+            if real_email == True:
+                sql = "insert into users (name, email, password) values(%s, %s, %s)"
+                values = (name, email, password)
+                secure_query(sql, values)
 
-            sign_up_verification = True
+                sign_up_verification = True
 
         except:
             sign_up_verification = False
         
         finally:
             if sign_up_verification == True:
+                
                 message = "Te has registrado correctamente."
             else:
                 message = "No te has podido registrar correctamente, inténtalo de nuevo."
 
     return render_template("sign_templates/sign_up.html", message=message)
 
+# Se puede acceder a la página "home" solo si el usuario ha iniciado sesión:
 @app.route("/home")
+@login_required
 def home():
     return render_template("home.html")
+
+@app.route("/new_task")
+@login_required
+def new_task():
+    return render_template("task_templates/new_task.html")
+
+@app.route("/task_list")
+@login_required
+def task_list():
+    return render_template("task_templates/task_list.html")
+
+# Si se cierra sesión, redirecciona a la página "login":
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
     app.run(debug=True)
